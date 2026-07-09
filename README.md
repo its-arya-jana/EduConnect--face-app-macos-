@@ -61,20 +61,24 @@ setup.bat
 
 ## Usage
 
-### Launch the app
+### One-click launch (recommended)
 
-After setup completes, run:
+Just **double-click** the launcher file for your OS:
+
+- **macOS:** `EduConnect-Face-Attendance.command`
+- **Windows:** `EduConnect-Face-Attendance.bat`
+
+The first time you run it, it will automatically install everything (Python packages, dependencies) — this takes 5–15 minutes. After that, it launches instantly.
+
+### Launch from Terminal
 
 ```bash
 # macOS / Linux
-cd face
-./run.sh
+./EduConnect-Face-Attendance.command
 
-# or from anywhere in the repo:
-bash run.sh
+# or directly with python:
+python gui_launcher.py
 ```
-
-On **Windows**, double-click `run.bat`.
 
 ### From EduConnect Portal (recommended)
 
@@ -82,19 +86,9 @@ On **Windows**, double-click `run.bat`.
 2. Go to **Attendance** section
 3. Select a **Subject** and **Date**
 4. Click **Mark Attendance**
-5. Click **Launch App** — the app opens with the class pre-loaded
-6. The face scanner starts automatically — students look at the camera and blink to verify
-7. Marked attendance syncs to the portal in real time
-
-### Standalone usage
-
-```bash
-# Launch with specific class
-python gui_launcher.py --class-id <CLASS_ID> --auth-token <TOKEN> --date YYYY-MM-DD
-
-# Launch manually (log in from the app)
-python gui_launcher.py
-```
+5. The app opens with the class pre-loaded
+6. Students look at the camera and blink to verify attendance
+7. Attendance syncs to the portal in real time
 
 ### First-time setup in the app
 
@@ -104,20 +98,11 @@ python gui_launcher.py
 
 ---
 
-## Configuration
+## How it works
 
-Edit `educonnect_config.json`:
-
-```json
-{
-  "base_url": "http://localhost:5002",
-  "email": "your-teacher-email@example.com",
-  "note": "Change base_url to your EduConnect server URL"
-}
-```
-
-- `base_url`: Your EduConnect server URL (e.g., `https://educonnect.onrender.com` for production)
-- `email`: Pre-filled login email
+- **No configuration needed.** The app automatically detects your EduConnect server (production at `educonnect.onrender.com` or local at `localhost:5002`).
+- **Just log in** with your existing EduConnect teacher email and password.
+- The app detects the server URL on startup and saves it for next time.
 
 ---
 
@@ -125,17 +110,18 @@ Edit `educonnect_config.json`:
 
 ```
 EduConnect-Face-App/
-├── gui_launcher.py              # Entry point
-├── department_attendance_app.py # Main Tkinter GUI
-├── face_recognizer.py           # Face detection / recognition
-├── database.py                  # Local SQLite operations
-├── student_mapper.py            # Face ID ↔ EduConnect ID mapping
-├── educonnect_config.json       # Server URL & email config
-├── student_mapping.json         # Auto-generated ID mappings
-├── setup.sh                     # macOS / Linux setup script
-├── setup.bat                    # Windows setup script
-├── requirements.txt             # Python dependencies
-└── dataset/                     # Face sample images (auto-created)
+├── EduConnect-Face-Attendance.command  # macOS launcher (double-click)
+├── EduConnect-Face-Attendance.bat      # Windows launcher (double-click)
+├── gui_launcher.py                     # Entry point
+├── department_attendance_app.py        # Main Tkinter GUI
+├── face_recognizer.py                  # Face detection / recognition
+├── database.py                         # Local SQLite operations
+├── student_mapper.py                   # Face ID ↔ EduConnect ID mapping
+├── educonnect_config.json              # Auto-detected; no manual edits needed
+├── student_mapping.json                # Auto-generated ID mappings
+├── requirements.txt                    # Python dependencies
+├── setup.sh                            # Terminal setup (alternative to launcher)
+└── dataset/                            # Face sample images (auto-created)
 ```
 
 ---

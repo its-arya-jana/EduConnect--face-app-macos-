@@ -13,6 +13,23 @@ from student_mapper import StudentMapper
 CONFIG_FILE = "educonnect_config.json"
 AUTH_FILE = ".educonnect_auth"
 
+PRODUCTION_URL = "https://educonnect.onrender.com"
+LOCALHOST_URL = "http://localhost:5002"
+
+def detect_server_url():
+    urls = [PRODUCTION_URL, LOCALHOST_URL]
+    cfg = load_config()
+    if cfg.get("base_url") and cfg["base_url"] not in urls:
+        urls.insert(0, cfg["base_url"])
+    for url in urls:
+        try:
+            r = requests.get(f"{url}/api/auth/login", timeout=5)
+            if r.status_code in (200, 405, 401):
+                return url
+        except:
+            pass
+    return PRODUCTION_URL
+
 BG = "#f1f5f9"
 CARD_BG = "#ffffff"
 HDR_BG = "#0f172a"
@@ -168,6 +185,9 @@ class App:
 
         cfg = load_config()
         if cfg.get("base_url"): self.base_url = cfg["base_url"]
+        self.base_url = detect_server_url()
+        if not cfg.get("base_url") or cfg["base_url"] != self.base_url:
+            save_config({**cfg, "base_url": self.base_url})
 
         if token:
             self.token = token
@@ -235,6 +255,13 @@ class App:
             try: self.login_err.config(text="Enter email and password")
             except: pass
             return
+
+        detected = detect_server_url()
+        if detected:
+            self.base_url = detected
+            cfg = load_config()
+            save_config({**cfg, "base_url": self.base_url, "email": e})
+
         try:
             resp = self.session.post(f"{self.base_url}/api/auth/login",
                                      json={"email": e, "password": p, "role": "teacher"}, timeout=10)
@@ -245,13 +272,12 @@ class App:
                 self.session.headers.update({
                     "Authorization": f"Bearer {self.token}", "Content-Type": "application/json"
                 })
-                save_config({"base_url": self.base_url, "email": e})
                 self.root.after(0, self._post_login)
             else:
                 try: self.login_err.config(text="Invalid credentials")
                 except: pass
         except requests.exceptions.ConnectionError:
-            try: self.login_err.config(text="Cannot connect to server")
+            try: self.login_err.config(text="Cannot connect to server.\nMake sure EduConnect is running and you're connected to internet.")
             except: pass
         except Exception as ex:
             try: self.login_err.config(text=str(ex)[:50])

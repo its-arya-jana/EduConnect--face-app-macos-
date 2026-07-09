@@ -9,3 +9,4 @@ dataset/*.png
 trainer.pkl
 .DS_Store
 Thumbs.db
+.educonnect_auth
