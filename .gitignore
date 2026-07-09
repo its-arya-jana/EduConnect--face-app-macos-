@@ -1,0 +1,11 @@
+__pycache__/
+.venv/
+venv/
+venv_merged/
+dataset/*.jpg
+dataset/*.png
+*.db
+*.db-journal
+trainer.pkl
+.DS_Store
+Thumbs.db

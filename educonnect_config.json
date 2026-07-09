@@ -1,0 +1,5 @@
+{
+  "base_url": "http://localhost:5002",
+  "email": "teacher222@gmail.com",
+  "note": "Change base_url to your production server URL when deploying"
+}
