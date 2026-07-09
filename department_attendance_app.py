@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import os, json, sqlite3, pickle, threading
 import cv2
-import cloudscraper
+from curl_cffi import requests as curl_requests
 from datetime import datetime
 from PIL import Image, ImageTk
 from face_recognizer import FaceRecognizer, TRAINER_FILE
@@ -16,13 +16,6 @@ AUTH_FILE = ".educonnect_auth"
 PRODUCTION_URL = "https://educonnect.onrender.com"
 LOCALHOST_URL = "http://localhost:5002"
 
-def _browser_headers():
-    return {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-
 def detect_server_url():
     urls = [PRODUCTION_URL, LOCALHOST_URL]
     cfg = load_config()
@@ -30,8 +23,8 @@ def detect_server_url():
         urls.insert(0, cfg["base_url"])
     for url in urls:
         try:
-            scraper = cloudscraper.create_scraper()
-            r = scraper.get(f"{url}/api/auth/login", timeout=10)
+            s = curl_requests.Session(impersonate="chrome124")
+            r = s.get(f"{url}/api/auth/login", timeout=10)
             if r.status_code in (200, 405, 401):
                 return url
         except:
@@ -181,11 +174,9 @@ class App:
         init_db()
         self.mapper = StudentMapper()
         self.face_recognizer = FaceRecognizer()
-        self.session = cloudscraper.create_scraper()
+        self.session = curl_requests.Session(impersonate="chrome124")
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
         })
         self.base_url = "http://localhost:5002"
         self.token = None

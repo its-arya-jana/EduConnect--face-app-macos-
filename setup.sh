@@ -7,7 +7,7 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
     source venv/bin/activate
     pip install --upgrade pip
-    pip install opencv-python opencv-contrib-python numpy Pillow cloudscraper
+    pip install opencv-python opencv-contrib-python numpy Pillow curl_cffi
     pip install face_recognition
     if command -v git &>/dev/null; then
         pip install git+https://github.com/ageitgey/face_recognition_models

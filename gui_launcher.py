@@ -12,9 +12,9 @@ try:
 except ImportError:
     missing.append("Pillow")
 try:
-    import cloudscraper
+    from curl_cffi import requests
 except ImportError:
-    missing.append("cloudscraper")
+    missing.append("curl_cffi")
 try:
     import face_recognition
 except ImportError:
