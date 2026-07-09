@@ -31,22 +31,47 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>LSUIElement</key>
+    <false/>
 </dict>
 </plist>
 EOF
 
 cat > "$APP_BUNDLE/Contents/MacOS/$APP_NAME" <<'EXEC'
 #!/bin/bash
-DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+# Resolve to the folder containing this .app bundle
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$DIR"
 
-if [ ! -d "venv" ]; then
-    clear
-    echo "============================================"
-    echo "  EduConnect Face Attendance — First-Time Setup"
-    echo "============================================"
+clear
+echo "============================================"
+echo "  EduConnect Face Attendance"
+echo "============================================"
+echo ""
+
+# Check Python
+if ! command -v python3 &>/dev/null; then
+    echo "ERROR: Python 3 is not installed."
     echo ""
-    echo "Creating virtual environment..."
+    echo "Download from: https://www.python.org/downloads/"
+    echo "Make sure to check 'Add Python to PATH' during installation."
+    echo ""
+    read -p "Press Enter to close..."
+    exit 1
+fi
+echo "Python: $(python3 --version)"
+
+# Check pip
+if ! command -v pip3 &>/dev/null && ! python3 -m pip --version &>/dev/null; then
+    echo "ERROR: pip is not installed."
+    read -p "Press Enter to close..."
+    exit 1
+fi
+
+# Auto-setup virtual environment if needed
+if [ ! -d "venv" ]; then
+    echo ""
+    echo "First-time setup: Creating virtual environment..."
     python3 -m venv venv
     source venv/bin/activate
 
@@ -54,22 +79,22 @@ if [ ! -d "venv" ]; then
     pip install --upgrade pip
 
     echo ""
-    echo "Installing dependencies (this may take 5–15 minutes)..."
+    echo "Installing packages (5-15 minutes)..."
     pip install opencv-python opencv-contrib-python numpy Pillow requests face_recognition
 
     echo ""
-    echo "Setup complete! Launching app..."
+    echo "Setup complete!"
 else
     source venv/bin/activate
 fi
 
+echo ""
+echo "Launching app..."
 python gui_launcher.py
 
-if [ $? -ne 0 ]; then
-    echo ""
-    echo "Error: Something went wrong. Try deleting the 'venv' folder and running again."
-    read -p "Press Enter to close..."
-fi
+echo ""
+echo "App closed."
+read -p "Press Enter to close this window..."
 EXEC
 
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
@@ -78,7 +103,7 @@ echo ""
 echo "Done! Located at: $APP_BUNDLE"
 echo ""
 echo "On first launch, macOS may show a security warning."
-echo "If so: Right-click the app → Open → click 'Open' in the dialog."
+echo "If so: Right-click the app -> Open -> click 'Open' in the dialog."
 echo ""
-echo "To remove the quarantine flag (prevents the warning entirely):"
+echo "To remove the warning permanently:"
 echo "  xattr -d com.apple.quarantine '$APP_BUNDLE'"
