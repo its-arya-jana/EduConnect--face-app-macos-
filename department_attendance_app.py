@@ -24,7 +24,7 @@ def detect_server_url():
     for url in urls:
         try:
             s = curl_requests.Session(impersonate="chrome124")
-            r = s.get(f"{url}/api/auth/login", timeout=10)
+            r = s.get(f"{url}/api/auth/login", timeout=30)
             if r.status_code in (200, 405, 401):
                 return url
         except:
@@ -264,7 +264,7 @@ class App:
             except: pass
             return
 
-        try: self.login_err.config(text="Connecting...", fg=TEXT_MUTED)
+        try: self.login_err.config(text="Waking server... (may take up to 60s)", fg=TEXT_MUTED)
         except: pass
         self.root.update()
 
@@ -279,7 +279,7 @@ class App:
             except: pass
             self.root.update()
             resp = self.session.post(f"{self.base_url}/api/auth/login",
-                                     json={"email": e, "password": p, "role": "teacher"}, timeout=30)
+                                     json={"email": e, "password": p, "role": "teacher"}, timeout=90)
             resp.raise_for_status()
             d = resp.json()
             if d.get("success") and "token" in d.get("data", {}):
@@ -300,7 +300,7 @@ class App:
 
     def _warmup_connection(self):
         try:
-            self.session.get(self.base_url, timeout=30)
+            self.session.get(self.base_url, timeout=60)
         except:
             pass
 
