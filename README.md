@@ -63,12 +63,20 @@ setup.bat
 
 ### One-click launch (recommended)
 
-Just **double-click** the launcher file for your OS:
+**macOS:** Double-click `EduConnect-Face-Attendance.app` (looks like a real Mac app).
 
-- **macOS:** `EduConnect-Face-Attendance.command`
-- **Windows:** `EduConnect-Face-Attendance.bat`
+If macOS blocks it with "not verified" warning:
+> **Right-click** the app → **Open** → click **Open** in the dialog.
+> This is only needed once — after that, normal double-click works.
 
-The first time you run it, it will automatically install everything (Python packages, dependencies) — this takes 5–15 minutes. After that, it launches instantly.
+Or use Terminal once to remove the warning permanently:
+```bash
+xattr -d com.apple.quarantine EduConnect-Face-Attendance.app
+```
+
+**Windows:** Double-click `EduConnect-Face-Attendance.bat`.
+
+The first time you run it, it automatically installs everything (Python packages, dependencies) — takes 5–15 minutes. After that, it launches instantly.
 
 ### Launch from Terminal
 
