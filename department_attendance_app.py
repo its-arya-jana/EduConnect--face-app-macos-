@@ -300,18 +300,16 @@ class App:
             else:
                 try: self.login_err.config(text="Invalid credentials", fg=CARD_RED_BORDER)
                 except: pass
-        except cloudscraper.exceptions.CloudflareChallengeError:
-            try: self.login_err.config(text="Server is blocking the connection (Cloudflare).\nTry logging in via the web portal first.", fg=CARD_RED_BORDER)
-            except: pass
         except Exception as ex:
-            msg = str(ex)[:60]
+            msg = str(ex)[:80]
+            if '403' in msg or 'Forbidden' in msg:
+                msg = "Blocked by Cloudflare.\nGo to Render Dashboard → disable Cloudflare proxy,\nor use http://localhost:5002 for local development."
             try: self.login_err.config(text=msg, fg=CARD_RED_BORDER)
             except: pass
 
     def _warmup_connection(self):
         try:
-            scraper = cloudscraper.create_scraper()
-            scraper.get(self.base_url, timeout=30)
+            self.session.get(self.base_url, timeout=30)
         except:
             pass
 
