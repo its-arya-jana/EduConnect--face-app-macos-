@@ -202,6 +202,10 @@ class App:
         if not cfg.get("base_url") or cfg["base_url"] != self.base_url:
             save_config({**cfg, "base_url": self.base_url})
 
+        # Warm up Cloudflare connection in background
+        if self.base_url == PRODUCTION_URL:
+            threading.Thread(target=self._warmup_connection, daemon=True).start()
+
         if token:
             self.token = token
             self.class_id = class_id
@@ -269,6 +273,10 @@ class App:
             except: pass
             return
 
+        try: self.login_err.config(text="Connecting...", fg=TEXT_MUTED)
+        except: pass
+        self.root.update()
+
         detected = detect_server_url()
         if detected:
             self.base_url = detected
@@ -276,8 +284,11 @@ class App:
             save_config({**cfg, "base_url": self.base_url, "email": e})
 
         try:
+            try: self.login_err.config(text="Logging in...", fg=TEXT_MUTED)
+            except: pass
+            self.root.update()
             resp = self.session.post(f"{self.base_url}/api/auth/login",
-                                     json={"email": e, "password": p, "role": "teacher"}, timeout=10)
+                                     json={"email": e, "password": p, "role": "teacher"}, timeout=30)
             resp.raise_for_status()
             d = resp.json()
             if d.get("success") and "token" in d.get("data", {}):
@@ -287,14 +298,22 @@ class App:
                 })
                 self.root.after(0, self._post_login)
             else:
-                try: self.login_err.config(text="Invalid credentials")
+                try: self.login_err.config(text="Invalid credentials", fg=CARD_RED_BORDER)
                 except: pass
-        except requests.exceptions.ConnectionError:
-            try: self.login_err.config(text="Cannot connect to server.\nMake sure EduConnect is running and you're connected to internet.")
+        except cloudscraper.exceptions.CloudflareChallengeError:
+            try: self.login_err.config(text="Server is blocking the connection (Cloudflare).\nTry logging in via the web portal first.", fg=CARD_RED_BORDER)
             except: pass
         except Exception as ex:
-            try: self.login_err.config(text=str(ex)[:50])
+            msg = str(ex)[:60]
+            try: self.login_err.config(text=msg, fg=CARD_RED_BORDER)
             except: pass
+
+    def _warmup_connection(self):
+        try:
+            scraper = cloudscraper.create_scraper()
+            scraper.get(self.base_url, timeout=30)
+        except:
+            pass
 
     def _post_login(self):
         self._build_main()
