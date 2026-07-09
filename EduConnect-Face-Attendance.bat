@@ -3,14 +3,16 @@ cd /d "%~dp0"
 setlocal enabledelayedexpansion
 
 :: Find a working Python (avoid Microsoft Store redirect)
+:: The MS Store stub returns exit 0 for --version but can't run code.
+:: Using `-c "import sys"` reliably detects real Python.
 set PYTHON_CMD=
-python --version >nul 2>&1
+py -3 -c "import sys" >nul 2>&1
 if %errorlevel% equ 0 (
-    set PYTHON_CMD=python
+    set PYTHON_CMD=py -3
 ) else (
-    py -3 --version >nul 2>&1
+    python -c "import sys" >nul 2>&1
     if %errorlevel% equ 0 (
-        set PYTHON_CMD=py -3
+        set PYTHON_CMD=python
     ) else (
         echo ============================================
         echo   Python not found
