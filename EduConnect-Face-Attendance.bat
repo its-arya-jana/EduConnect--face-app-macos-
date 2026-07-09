@@ -1,37 +1,39 @@
 @echo off
 cd /d "%~dp0"
-setlocal enabledelayedexpansion
 
-:: Find a working Python (avoid Microsoft Store redirect)
-:: The MS Store stub returns exit 0 for --version but can't run code.
-:: Using `-c "import sys"` reliably detects real Python.
-set PYTHON_CMD=
-py -3 -c "import sys" >nul 2>&1
-if %errorlevel% equ 0 (
-    set PYTHON_CMD=py -3
-) else (
-    python -c "import sys" >nul 2>&1
-    if %errorlevel% equ 0 (
-        set PYTHON_CMD=python
-    ) else (
+:: Check that Python is a real install, not the Microsoft Store stub
+where python 2>nul | findstr /i /v "WindowsApps" >nul
+if %errorlevel% neq 0 (
+    where py 2>nul >nul
+    if %errorlevel% neq 0 (
         echo ============================================
         echo   Python not found
         echo ============================================
         echo.
-        echo Download Python from python.org (NOT the Microsoft Store):
-        echo   https://www.python.org/downloads/
+        echo You have the Microsoft Store Python stub, which
+        echo won't work for this app.
         echo.
-        echo Make sure to check "Add Python to PATH" during installation.
+        echo Solution:
+        echo   1. Download Python from python.org:
+        echo      https://www.python.org/downloads/
         echo.
-        echo If Python IS installed, disable the Microsoft Store alias:
-        echo   Settings ^> Apps ^> Advanced app settings ^> App execution aliases
-        echo   Turn OFF "python.exe" and "python3.exe"
+        echo   2. During install, check "Add Python to PATH"
+        echo.
+        echo   3. Or disable the Store alias:
+        echo      Settings ^> Apps ^> Advanced app settings
+        echo      ^> App execution aliases
+        echo      Turn OFF "python.exe" and "python3.exe"
         echo.
         pause
         exit /b 1
     )
+    set PYTHON_CMD=py -3
+    goto :found
 )
 
+set PYTHON_CMD=python
+
+:found
 echo Python:
 %PYTHON_CMD% --version
 
@@ -45,7 +47,6 @@ if not exist "venv\Scripts\activate.bat" (
 
     if not exist "venv\Scripts\activate.bat" (
         echo Failed to create virtual environment.
-        echo Try running the command prompt as Administrator.
         pause
         exit /b 1
     )
