@@ -12,14 +12,20 @@ if not exist venv\Scripts\activate.bat (
     echo Upgrading pip...
     python -m pip install --upgrade pip
     echo.
-    echo Installing opencv, numpy, Pillow, requests...
+    echo Installing packages...
     pip install opencv-python opencv-contrib-python numpy Pillow requests
-    echo.
-    echo Installing face_recognition (10-15 minutes)...
     pip install face_recognition
     echo.
     echo Installing face_recognition_models...
-    pip install git+https://github.com/ageitgey/face_recognition_models
+    pip install https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip
+    echo.
+    echo Patching models for Python compatibility...
+    python patch_models.py
+    if %errorlevel% neq 0 (
+        echo Patch failed.
+        pause
+        exit /b 1
+    )
     echo.
     echo Setup complete!
 ) else (
@@ -32,6 +38,5 @@ python gui_launcher.py
 if %errorlevel% neq 0 (
     echo.
     echo App exited with error code %errorlevel%
-    echo Try deleting the 'venv' folder and running again.
 )
 pause

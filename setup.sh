@@ -14,8 +14,8 @@ if [ ! -d "venv" ]; then
     else
         pip install https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip
     fi
-else
-    source venv/bin/activate
+    python3 patch_models.py
 fi
 
+source venv/bin/activate
 python gui_launcher.py "$@"

@@ -87,21 +87,16 @@ if [ ! -d "venv" ]; then
     if command -v git &>/dev/null; then
         pip install git+https://github.com/ageitgey/face_recognition_models 2>&1
     else
-        python3 -c "
-import urllib.request, zipfile, io, os, sys, site
-url = 'https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip'
-try:
-    req = urllib.request.urlopen(url)
-    z = zipfile.ZipFile(io.BytesIO(req.read()))
-    z.extractall('/tmp/frm')
-    dest = os.path.join(site.getsitepackages()[0], 'face_recognition_models')
-    if os.path.exists(dest):
-        import shutil; shutil.rmtree(dest)
-    os.rename('/tmp/frm/face_recognition_models-master/face_recognition_models', dest)
-    print('face_recognition_models installed successfully')
-except Exception as e:
-    print(f'Failed: {e}')
-" 2>&1
+        pip install https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip 2>&1
+    fi
+
+    echo ""
+    echo "Patching models for Python compatibility..."
+    python3 patch_models.py
+    if [ $? -ne 0 ]; then
+        echo "Patch failed — app may not work correctly."
+        read -p "Press Enter to close..."
+        exit 1
     fi
 
     echo ""
