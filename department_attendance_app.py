@@ -454,7 +454,7 @@ class App:
             for w in self._ri.winfo_children(): w.destroy()
         except: return
         for s in self.roster_students:
-            mid = s["_id"]
+            mid = str(s["_id"])
             st = self.existing_status_map.get(mid, "not_marked")
             is_present = st == "present"
             today_label = "Present" if is_present else "Absent" if st == "absent" else "Not Marked"
@@ -479,7 +479,7 @@ class App:
         except: return
         self.scanner_cards = {}
         for s in self.roster_students:
-            mid = s["_id"]
+            mid = str(s["_id"])
             st = self.existing_status_map.get(mid, "not_marked")
             is_present = st == "present"
             build_scanner_card(self._si, s["name"], st, is_present)
@@ -497,7 +497,7 @@ class App:
             return
         mid = None
         for s in self.roster_students:
-            if s["name"] == name: mid = s["_id"]; break
+            if s["name"] == name: mid = str(s["_id"]); break
         if not mid: return
         fid = None
         for lid, rid in self.mapper.mappings.items():
@@ -543,6 +543,8 @@ class App:
     def _mark_green(self, mid):
         if mid not in self.scanner_cards: return
         self.scanner_cards[mid]["present"] = True
+        self.existing_status_map[mid] = "present"
+        self.recognized_ids.add(mid)
         self.submit_count.config(text=f"Present: {len([c for c in self.scanner_cards.values() if c['present']])} / {len(self.scanner_cards)}")
 
     def update_single_attendance_portal(self, student_mid):
@@ -708,6 +710,7 @@ class ScannerWin:
 
         self.recognized_mids = set(mid for mid, entry in outer.scanner_cards.items() if entry["present"])
         self.blink_states = {}
+        self.cw = {}
 
         left = tk.Frame(self.win, bg="black")
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -783,7 +786,7 @@ class ScannerWin:
         except:
             return
         for mid, entry in self.cw.items():
-            name = next((s["name"] for s in self.app.roster_students if s["_id"] == mid), "")
+            name = next((s["name"] for s in self.app.roster_students if str(s["_id"]) == mid), "")
             is_present = entry.get("present", False)
             build_scanner_card(self.ci, name, "present" if is_present else "absent", is_present)
         if not self.cw:
@@ -794,6 +797,8 @@ class ScannerWin:
         if mid not in self.cw: return
         self.cw[mid]["present"] = True
         self.outer.scanner_cards[mid]["present"] = True
+        self.outer.existing_status_map[mid] = "present"
+        self.outer.recognized_ids.add(mid)
         self._render_scanner_status()
         self._render_scanner_cards()
         p = len([c for c in self.outer.scanner_cards.values() if c["present"]])
@@ -818,7 +823,7 @@ class ScannerWin:
                 fid, conf, (x, y, w, h), ear = item
                 if fid is not None:
                     mid = self.app.mapper.get_educonnect_id(fid)
-                    student = next((s for s in self.app.roster_students if s["_id"] == mid), None) if mid else None
+                    student = next((s for s in self.app.roster_students if str(s["_id"]) == mid), None) if mid else None
                     if mid and student:
                         student_name = student.get("name", "")
                         student_id = student.get("studentId", "")
