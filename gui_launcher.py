@@ -12,9 +12,13 @@ try:
 except ImportError:
     missing.append("Pillow")
 try:
-    from curl_cffi import requests
+    import pymongo
 except ImportError:
-    missing.append("curl_cffi")
+    missing.append("pymongo")
+try:
+    import bcrypt
+except ImportError:
+    missing.append("bcrypt")
 try:
     import face_recognition
 except ImportError:

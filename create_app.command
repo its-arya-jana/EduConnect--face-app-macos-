@@ -76,7 +76,7 @@ if [ ! -d "venv" ]; then
 
     echo ""
     echo "Installing opencv, numpy, Pillow, requests..."
-    pip install opencv-python opencv-contrib-python numpy Pillow curl_cffi
+    pip install opencv-python opencv-contrib-python numpy Pillow pymongo bcrypt
 
     echo ""
     echo "Installing face_recognition..."

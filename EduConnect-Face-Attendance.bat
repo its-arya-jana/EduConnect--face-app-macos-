@@ -13,7 +13,7 @@ if not exist venv\Scripts\activate.bat (
     python -m pip install --upgrade pip
     echo.
     echo Installing packages...
-    pip install opencv-python opencv-contrib-python numpy Pillow curl_cffi
+    pip install opencv-python opencv-contrib-python numpy Pillow pymongo bcrypt
     pip install face_recognition
     echo.
     echo Installing face_recognition_models...

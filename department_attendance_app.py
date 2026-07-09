@@ -3,7 +3,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import os, json, sqlite3, pickle, threading
 import cv2
-from curl_cffi import requests as curl_requests
+import pymongo
+import bcrypt
+from bson import ObjectId
 from datetime import datetime
 from PIL import Image, ImageTk
 from face_recognizer import FaceRecognizer, TRAINER_FILE
@@ -13,23 +15,8 @@ from student_mapper import StudentMapper
 CONFIG_FILE = "educonnect_config.json"
 AUTH_FILE = ".educonnect_auth"
 
-PRODUCTION_URL = "https://educonnect.onrender.com"
-LOCALHOST_URL = "http://localhost:5002"
-
-def detect_server_url():
-    urls = [PRODUCTION_URL, LOCALHOST_URL]
-    cfg = load_config()
-    if cfg.get("base_url") and cfg["base_url"] not in urls:
-        urls.insert(0, cfg["base_url"])
-    for url in urls:
-        try:
-            s = curl_requests.Session(impersonate="chrome124")
-            r = s.get(f"{url}/api/auth/login", timeout=30)
-            if r.status_code in (200, 405, 401):
-                return url
-        except:
-            pass
-    return PRODUCTION_URL
+MONGO_URI = "mongodb+srv://soumyajitjana011:giveme12%40someray@cluster1.fafrlis.mongodb.net/educonnect?retryWrites=true&w=majority"
+AUTH_DB = "educonnect"
 
 BG = "#f1f5f9"
 CARD_BG = "#ffffff"
@@ -174,12 +161,9 @@ class App:
         init_db()
         self.mapper = StudentMapper()
         self.face_recognizer = FaceRecognizer()
-        self.session = curl_requests.Session(impersonate="chrome124")
-        self.session.headers.update({
-            "Accept": "application/json, text/plain, */*",
-        })
-        self.base_url = "http://localhost:5002"
-        self.token = None
+        self.client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
+        self.db = self.client.get_database()
+        self.teacher = None
         self.class_id = None
         self.roster_students = []
         self.existing_status_map = {}
@@ -187,38 +171,13 @@ class App:
         self.subject_map = {}
         self.scanner_cards = {}
 
-        cfg = load_config()
-        if cfg.get("base_url"): self.base_url = cfg["base_url"]
-        self.base_url = detect_server_url()
-        if not cfg.get("base_url") or cfg["base_url"] != self.base_url:
-            save_config({**cfg, "base_url": self.base_url})
-
-        # Warm up Cloudflare connection in background
-        if self.base_url == PRODUCTION_URL:
-            threading.Thread(target=self._warmup_connection, daemon=True).start()
-
         if token:
-            self.token = token
             self.class_id = class_id
-            self.session.headers.update({
-                "Authorization": f"Bearer {self.token}", "Content-Type": "application/json"
-            })
             self._build_main()
             self._load_subjects_and_select_class(class_id, date)
             self.root.after(1000, self._start_scan)
         else:
-            auth = load_auth()
-            if auth.get("token") and auth.get("base_url"):
-                self.base_url = auth["base_url"]
-                self.token = auth["token"]
-                self.session.headers.update({
-                    "Authorization": f"Bearer {self.token}", "Content-Type": "application/json"
-                })
-                clear_auth()
-                self._build_main()
-                self._load_subjects()
-            else:
-                self._build_login()
+            self._build_login()
 
     def _clear(self):
         for w in self.root.winfo_children(): w.destroy()
@@ -256,7 +215,7 @@ class App:
 
     def _do_login(self):
         try:
-            e = self.login_email.get().strip()
+            e = self.login_email.get().strip().lower()
             p = self.login_pwd.get().strip()
         except: return
         if not e or not p:
@@ -264,45 +223,31 @@ class App:
             except: pass
             return
 
-        try: self.login_err.config(text="Waking server... (may take up to 60s)", fg=TEXT_MUTED)
+        try: self.login_err.config(text="Connecting to database...", fg=TEXT_MUTED)
         except: pass
         self.root.update()
 
-        detected = detect_server_url()
-        if detected:
-            self.base_url = detected
-            cfg = load_config()
-            save_config({**cfg, "base_url": self.base_url, "email": e})
-
         try:
-            try: self.login_err.config(text="Logging in...", fg=TEXT_MUTED)
-            except: pass
-            self.root.update()
-            resp = self.session.post(f"{self.base_url}/api/auth/login",
-                                     json={"email": e, "password": p, "role": "teacher"}, timeout=90)
-            resp.raise_for_status()
-            d = resp.json()
-            if d.get("success") and "token" in d.get("data", {}):
-                self.token = d["data"]["token"]
-                self.session.headers.update({
-                    "Authorization": f"Bearer {self.token}", "Content-Type": "application/json"
-                })
-                self.root.after(0, self._post_login)
-            else:
-                try: self.login_err.config(text="Invalid credentials", fg=CARD_RED_BORDER)
+            user = self.db['users'].find_one({'email': e, 'role': {'$in': ['teacher', 'hod', 'managing_authority', 'admin']}})
+            if not user:
+                try: self.login_err.config(text="No teacher found with this email", fg=CARD_RED_BORDER)
                 except: pass
-        except Exception as ex:
-            msg = str(ex)[:80]
-            if '403' in msg or 'Forbidden' in msg:
-                msg = "Blocked by Cloudflare.\nGo to Render Dashboard → disable Cloudflare proxy,\nor use http://localhost:5002 for local development."
-            try: self.login_err.config(text=msg, fg=CARD_RED_BORDER)
-            except: pass
+                return
 
-    def _warmup_connection(self):
-        try:
-            self.session.get(self.base_url, timeout=60)
-        except:
-            pass
+            if not bcrypt.checkpw(p.encode('utf-8'), user['password'].encode('utf-8')):
+                try: self.login_err.config(text="Wrong password", fg=CARD_RED_BORDER)
+                except: pass
+                return
+
+            self.teacher = user
+            save_config({"email": e})
+            self.root.after(0, self._post_login)
+        except pymongo.errors.ServerSelectionTimeoutError:
+            try: self.login_err.config(text="Cannot connect to database.\nCheck your internet connection.", fg=CARD_RED_BORDER)
+            except: pass
+        except Exception as ex:
+            try: self.login_err.config(text=str(ex)[:60], fg=CARD_RED_BORDER)
+            except: pass
 
     def _post_login(self):
         self._build_main()
@@ -418,39 +363,36 @@ class App:
     # ═══ DATA ══════════════════════════════════════════════════════════
     def _load_subjects(self):
         try:
-            resp = self.session.get(f"{self.base_url}/api/classes", timeout=10)
-            resp.raise_for_status()
-            d = resp.json()
-            if d.get("success"):
-                classes = d["data"]["classes"] if "classes" in d["data"] else d["data"]
-                self.subject_map = {c["name"]: c for c in classes}
-                names = list(self.subject_map.keys())
-                self.sub_dd["values"] = names
-                if names:
-                    self.sub_dd.set(names[0])
-                    self._load_ro()
+            if not self.teacher:
+                return
+            classes = list(self.db['classes'].find({'teacher': self.teacher['_id']}))
+            self.subject_map = {c["name"]: c for c in classes}
+            names = list(self.subject_map.keys())
+            self.sub_dd["values"] = names
+            if names:
+                self.sub_dd.set(names[0])
+                self._load_ro()
         except Exception as ex:
             try: self._rs.config(text=f"Error: {ex}")
             except: pass
 
     def _load_subjects_and_select_class(self, class_id, date=None):
         try:
-            resp = self.session.get(f"{self.base_url}/api/classes", timeout=10)
-            resp.raise_for_status()
-            d = resp.json()
-            if d.get("success"):
-                classes = d["data"]["classes"] if "classes" in d["data"] else d["data"]
-                self.subject_map = {c["name"]: c for c in classes}
-                names = list(self.subject_map.keys())
-                self.sub_dd["values"] = names
-                for name, cls in self.subject_map.items():
-                    if cls["_id"] == class_id:
-                        self.sub_dd.set(name)
-                        if date:
-                            self.date_ent.delete(0, tk.END)
-                            self.date_ent.insert(0, date)
-                        self._load_ro()
-                        return
+            if not self.teacher:
+                return
+            class_oid = ObjectId(class_id)
+            classes = list(self.db['classes'].find({'teacher': self.teacher['_id']}))
+            self.subject_map = {c["name"]: c for c in classes}
+            names = list(self.subject_map.keys())
+            self.sub_dd["values"] = names
+            for name, cls in self.subject_map.items():
+                if cls["_id"] == class_oid:
+                    self.sub_dd.set(name)
+                    if date:
+                        self.date_ent.delete(0, tk.END)
+                        self.date_ent.insert(0, date)
+                    self._load_ro()
+                    return
         except Exception as ex:
             try: self._rs.config(text=f"Error: {ex}")
             except: pass
@@ -466,28 +408,23 @@ class App:
         try: self._rs.config(text=f"Loading {name}...")
         except: pass
         try:
-            resp = self.session.get(f"{self.base_url}/api/classes/{self.class_id}", timeout=10)
-            resp.raise_for_status()
-            d = resp.json()
-            if d.get("success"):
-                self.roster_students = d["data"].get("students", [])
-                self._load_existing()
+            student_ids = cls.get("students", [])
+            students = list(self.db['users'].find({'_id': {'$in': student_ids}}))
+            self.roster_students = students
+            self._load_existing()
         except Exception as ex:
             try: self._rs.config(text=f"Error: {ex}")
             except: pass
 
     def _load_existing(self):
-        d = self.date_ent.get().strip() or datetime.now().strftime("%Y-%m-%d")
+        d_str = self.date_ent.get().strip() or datetime.now().strftime("%Y-%m-%d")
+        d = datetime.strptime(d_str, "%Y-%m-%d")
         self.existing_status_map = {}
         try:
-            resp = self.session.get(
-                f"{self.base_url}/api/attendance/class-status?classId={self.class_id}&date={d}", timeout=10)
-            resp.raise_for_status()
-            dd = resp.json()
-            if dd.get("success"):
-                for s in dd["data"]:
-                    mid = s.get("mongoId") or s.get("studentId")
-                    self.existing_status_map[mid] = s.get("status", "not_marked")
+            records = list(self.db['attendances'].find({'class': self.class_id, 'date': d}))
+            for r in records:
+                sid = str(r['student'])
+                self.existing_status_map[sid] = r.get("status", "not_marked")
         except: pass
         self._render_roster()
         self._render_scanner()
@@ -609,13 +546,26 @@ class App:
         self.submit_count.config(text=f"Present: {len([c for c in self.scanner_cards.values() if c['present']])} / {len(self.scanner_cards)}")
 
     def update_single_attendance_portal(self, student_mid):
-        d = self.date_ent.get().strip() or datetime.now().strftime("%Y-%m-%d")
+        d_str = self.date_ent.get().strip() or datetime.now().strftime("%Y-%m-%d")
+        d = datetime.strptime(d_str, "%Y-%m-%d")
         def _sync():
             try:
-                self.session.post(f"{self.base_url}/api/attendance",
-                                  json={"classId": self.class_id, "date": d,
-                                        "attendance": [{"studentId": student_mid, "status": "present"}]},
-                                  timeout=10)
+                existing = self.db['attendances'].find_one({
+                    'class': self.class_id, 'student': ObjectId(student_mid), 'date': d
+                })
+                if existing:
+                    self.db['attendances'].update_one(
+                        {'_id': existing['_id']},
+                        {'$set': {'status': 'present'}}
+                    )
+                else:
+                    self.db['attendances'].insert_one({
+                        'class': self.class_id,
+                        'student': ObjectId(student_mid),
+                        'date': d,
+                        'status': 'present',
+                        'markedBy': self.teacher['_id'],
+                    })
             except:
                 pass
         threading.Thread(target=_sync, daemon=True).start()
@@ -624,15 +574,21 @@ class App:
         if not self.scanner_cards:
             messagebox.showwarning("No Data", "No attendance data")
             return
-        d = self.date_ent.get().strip() or datetime.now().strftime("%Y-%m-%d")
+        d_str = self.date_ent.get().strip() or datetime.now().strftime("%Y-%m-%d")
+        d = datetime.strptime(d_str, "%Y-%m-%d")
         records = []
         for mid, entry in self.scanner_cards.items():
             s = "present" if entry["present"] else "absent"
-            records.append({"studentId": mid, "status": s})
+            records.append({'class': self.class_id, 'student': ObjectId(mid), 'date': d, 'status': s, 'markedBy': self.teacher['_id']})
         try:
-            resp = self.session.post(f"{self.base_url}/api/attendance",
-                                      json={"classId": self.class_id, "date": d, "attendance": records}, timeout=10)
-            resp.raise_for_status()
+            for rec in records:
+                existing = self.db['attendances'].find_one({
+                    'class': rec['class'], 'student': rec['student'], 'date': rec['date']
+                })
+                if existing:
+                    self.db['attendances'].update_one({'_id': existing['_id']}, {'$set': {'status': rec['status']}})
+                else:
+                    self.db['attendances'].insert_one(rec)
             p = len([c for c in self.scanner_cards.values() if c["present"]])
             messagebox.showinfo("Success", f"Submitted!\nPresent: {p}/{len(records)}")
         except Exception as ex:
