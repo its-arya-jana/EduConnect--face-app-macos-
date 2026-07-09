@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# EduConnect Face App — one-line setup from terminal
-# For double-click, use EduConnect-Face-Attendance.command instead
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
@@ -11,7 +9,11 @@ if [ ! -d "venv" ]; then
     pip install --upgrade pip
     pip install opencv-python opencv-contrib-python numpy Pillow requests
     pip install face_recognition
-    pip install git+https://github.com/ageitgey/face_recognition_models
+    if command -v git &>/dev/null; then
+        pip install git+https://github.com/ageitgey/face_recognition_models
+    else
+        pip install https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip
+    fi
 else
     source venv/bin/activate
 fi

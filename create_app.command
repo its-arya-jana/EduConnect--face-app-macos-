@@ -79,13 +79,30 @@ if [ ! -d "venv" ]; then
     pip install opencv-python opencv-contrib-python numpy Pillow requests
 
     echo ""
-    echo "Installing face_recognition (includes dlib compile)..."
-    echo "This may take 5-10 minutes..."
+    echo "Installing face_recognition..."
     pip install face_recognition
 
     echo ""
     echo "Installing face_recognition_models..."
-    pip install git+https://github.com/ageitgey/face_recognition_models
+    if command -v git &>/dev/null; then
+        pip install git+https://github.com/ageitgey/face_recognition_models 2>&1
+    else
+        python3 -c "
+import urllib.request, zipfile, io, os, sys, site
+url = 'https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip'
+try:
+    req = urllib.request.urlopen(url)
+    z = zipfile.ZipFile(io.BytesIO(req.read()))
+    z.extractall('/tmp/frm')
+    dest = os.path.join(site.getsitepackages()[0], 'face_recognition_models')
+    if os.path.exists(dest):
+        import shutil; shutil.rmtree(dest)
+    os.rename('/tmp/frm/face_recognition_models-master/face_recognition_models', dest)
+    print('face_recognition_models installed successfully')
+except Exception as e:
+    print(f'Failed: {e}')
+" 2>&1
+    fi
 
     echo ""
     echo "Setup complete!"
