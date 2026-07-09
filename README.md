@@ -1,14 +1,13 @@
 # EduConnect Face Recognition App
 
-Desktop face recognition attendance system for **EduConnect** web portal. Teachers launch this app from their computer to mark student attendance using a webcam.
+Desktop face recognition attendance system for **EduConnect**. Teachers take attendance using a webcam — records sync directly to **MongoDB Atlas** (no web server needed).
 
 ## Features
 
 - Face detection and recognition using `face_recognition` (dlib)
-- Liveness detection (blink detection to prevent photo spoofing)
 - Real-time scanner with student roster overlay
-- Auto-syncs attendance to EduConnect web portal
-- Works offline — syncs when connected
+- Syncs attendance directly to MongoDB Atlas
+- Works completely offline except for database sync
 
 ## Prerequisites
 
@@ -17,100 +16,56 @@ Desktop face recognition attendance system for **EduConnect** web portal. Teache
 - **EduConnect teacher account** with active classes
 - **macOS** or **Linux** or **Windows 10/11**
 
-> **Note:** `dlib` / `face_recognition` compilation can take 5–15 minutes during first install.
+> **Note:** `dlib` / `face_recognition` compilation takes 5–15 minutes during first install.
 
 ---
 
-## Setup
+## Installation & Usage
 
 ### macOS
 
-```bash
-# 1. Install Homebrew (if not installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+Double-click **`EduConnect-Face-Attendance.app`**.
 
-# 2. Install cmake (required for dlib)
-brew install cmake
-
-# 3. Run setup script
-bash setup.sh
-```
-
-### Linux (Ubuntu/Debian)
-
-```bash
-# 1. Install system packages
-sudo apt update
-sudo apt install -y python3-pip python3-tk cmake build-essential
-
-# 2. Run setup script
-bash setup.sh
-```
-
-### Windows
-
-```cmd
-REM Simply double-click setup.bat
-REM Or run from Command Prompt:
-setup.bat
-```
-
-> On Windows, you may need **Visual Studio Build Tools** for dlib compilation. Download from: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022 (select "Desktop development with C++").
-
----
-
-## Usage
-
-### One-click launch (recommended)
-
-**macOS:** Double-click `EduConnect-Face-Attendance.app` (looks like a real Mac app).
-
-If macOS blocks it with "not verified" warning:
-> **Right-click** the app → **Open** → click **Open** in the dialog.
-> This is only needed once — after that, normal double-click works.
-
-Or use Terminal once to remove the warning permanently:
+If macOS blocks it: **Right-click → Open → click Open**. Or run once:
 ```bash
 xattr -d com.apple.quarantine EduConnect-Face-Attendance.app
 ```
 
-**Windows:** Double-click `EduConnect-Face-Attendance.bat`.
-
-The first time you run it, it automatically installs everything (Python packages, dependencies) — takes 5–15 minutes. After that, it launches instantly.
-
-### Launch from Terminal
+### macOS (Terminal alternative)
 
 ```bash
-# macOS / Linux
 ./EduConnect-Face-Attendance.command
-
-# or directly with python:
-python gui_launcher.py
 ```
 
-### From EduConnect Portal (recommended)
+### Windows
 
-1. Log in to EduConnect as a **Teacher**
-2. Go to **Attendance** section
-3. Select a **Subject** and **Date**
-4. Click **Mark Attendance**
-5. The app opens with the class pre-loaded
-6. Students look at the camera and blink to verify attendance
-7. Attendance syncs to the portal in real time
+Double-click **`EduConnect-Face-Attendance.bat`**.
 
-### First-time setup in the app
+> On Windows you may need **Visual Studio Build Tools** for dlib: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
 
-1. **Training tab** — Select a student → click **Capture 30 Photos** → click **Train Model**
-2. Repeat for all students in the class
-3. Go to **Scanner tab** → click **START SCANNER** to begin face recognition
+### First launch
+
+1. The app auto-installs everything into a virtual environment (takes 5–15 minutes).
+2. Enter your **EduConnect teacher email** and **password**.
+3. The app connects directly to MongoDB Atlas — no server or proxy needed.
+4. Select a subject, go to **Scanner tab**, click **START SCANNER**.
+
+### From EduConnect Portal
+
+1. Log in as a **Teacher** on EduConnect.
+2. Go to **Attendance → Mark Attendance**.
+3. Select a **Subject** and **Date**, click the face icon.
+4. The app opens with the class pre-loaded.
 
 ---
 
 ## How it works
 
-- **No configuration needed.** The app automatically detects your EduConnect server (production at `educonnect.onrender.com` or local at `localhost:5002`).
-- **Just log in** with your existing EduConnect teacher email and password.
-- The app detects the server URL on startup and saves it for next time.
+- **Direct MongoDB connection** — no web server, no Cloudflare, no cold-start wait.
+- Login validates against the `users` collection (bcrypt).
+- Class roster fetched from the `classes` collection.
+- Attendance upserted into the `attendances` collection.
+- All data lives in your existing EduConnect MongoDB Atlas cluster.
 
 ---
 
@@ -118,17 +73,19 @@ python gui_launcher.py
 
 ```
 EduConnect-Face-App/
-├── EduConnect-Face-Attendance.command  # macOS launcher (double-click)
+├── EduConnect-Face-Attendance.app      # macOS app bundle (double-click)
+├── EduConnect-Face-Attendance.command  # macOS launcher (Terminal)
 ├── EduConnect-Face-Attendance.bat      # Windows launcher (double-click)
 ├── gui_launcher.py                     # Entry point
-├── department_attendance_app.py        # Main Tkinter GUI
+├── department_attendance_app.py        # Main Tkinter GUI (MongoDB + face scan)
 ├── face_recognizer.py                  # Face detection / recognition
 ├── database.py                         # Local SQLite operations
-├── student_mapper.py                   # Face ID ↔ EduConnect ID mapping
-├── educonnect_config.json              # Auto-detected; no manual edits needed
-├── student_mapping.json                # Auto-generated ID mappings
+├── student_mapper.py                   # Face ID ↔ MongoDB ID mapping
+├── patch_models.py                     # Fixes face_recognition_models for Python 3.14+
 ├── requirements.txt                    # Python dependencies
 ├── setup.sh                            # Terminal setup (alternative to launcher)
+├── educonnect_config.json              # Saves email only
+├── student_mapping.json                # Auto-generated ID mappings
 └── dataset/                            # Face sample images (auto-created)
 ```
 
@@ -141,11 +98,11 @@ EduConnect-Face-App/
 | `dlib` fails to install | Install cmake / VS Build Tools first; ensure Python 3.10+ |
 | Camera not detected | Grant camera permission in System Settings / Privacy |
 | Face not recognized | Capture 30+ photos from different angles; retrain model |
-| App can't connect to server | Check `base_url` in `educonnect_config.json` |
+| "Cannot connect to database" | Check your internet connection |
 | `tkinter` not found (Linux) | `sudo apt install python3-tk` |
 
 ---
 
 ## License
 
-MIT License — see [EduConnect](https://github.com/its-arya-jana/EduConnect) main repository.
+MIT License — see [EduConnect](https://github.com/its-arya-jana/EduConnect).

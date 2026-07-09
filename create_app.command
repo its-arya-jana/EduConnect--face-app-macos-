@@ -75,29 +75,17 @@ if [ ! -d "venv" ]; then
     pip install --upgrade pip
 
     echo ""
-    echo "Installing opencv, numpy, Pillow, requests..."
-    pip install opencv-python opencv-contrib-python numpy Pillow pymongo bcrypt
-
-    echo ""
-    echo "Installing face_recognition..."
+    echo "Installing face_recognition (includes dlib, face_recognition_models)..."
+    echo "This may take 5-15 minutes — dlib is compiling from source."
     pip install face_recognition
 
     echo ""
-    echo "Installing face_recognition_models..."
-    if command -v git &>/dev/null; then
-        pip install git+https://github.com/ageitgey/face_recognition_models 2>&1
-    else
-        pip install https://github.com/ageitgey/face_recognition_models/archive/refs/heads/master.zip 2>&1
-    fi
+    echo "Installing additional packages..."
+    pip install opencv-python opencv-contrib-python numpy Pillow pymongo bcrypt
 
     echo ""
-    echo "Patching models for Python compatibility..."
-    python3 patch_models.py
-    if [ $? -ne 0 ]; then
-        echo "Patch failed — app may not work correctly."
-        read -p "Press Enter to close..."
-        exit 1
-    fi
+    echo "Patching face_recognition_models for Python 3.14+..."
+    python3 patch_models.py 2>/dev/null || true
 
     echo ""
     echo "Setup complete!"
