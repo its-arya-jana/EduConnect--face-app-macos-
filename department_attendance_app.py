@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import os, json, sqlite3, pickle, threading
 import cv2
-import requests
+import cloudscraper
 from datetime import datetime
 from PIL import Image, ImageTk
 from face_recognizer import FaceRecognizer, TRAINER_FILE
@@ -30,7 +30,8 @@ def detect_server_url():
         urls.insert(0, cfg["base_url"])
     for url in urls:
         try:
-            r = requests.get(f"{url}/api/auth/login", headers=_browser_headers(), timeout=5)
+            scraper = cloudscraper.create_scraper()
+            r = scraper.get(f"{url}/api/auth/login", timeout=10)
             if r.status_code in (200, 405, 401):
                 return url
         except:
@@ -180,7 +181,7 @@ class App:
         init_db()
         self.mapper = StudentMapper()
         self.face_recognizer = FaceRecognizer()
-        self.session = requests.Session()
+        self.session = cloudscraper.create_scraper()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",

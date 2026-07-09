@@ -12,9 +12,9 @@ try:
 except ImportError:
     missing.append("Pillow")
 try:
-    import requests
+    import cloudscraper
 except ImportError:
-    missing.append("requests")
+    missing.append("cloudscraper")
 try:
     import face_recognition
 except ImportError:
