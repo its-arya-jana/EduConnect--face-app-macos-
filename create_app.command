@@ -39,7 +39,6 @@ EOF
 
 cat > "$APP_BUNDLE/Contents/MacOS/$APP_NAME" <<'EXEC'
 #!/bin/bash
-# Resolve to the folder containing this .app bundle
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$DIR"
 
@@ -49,7 +48,6 @@ echo "  EduConnect Face Attendance"
 echo "============================================"
 echo ""
 
-# Check Python
 if ! command -v python3 &>/dev/null; then
     echo "ERROR: Python 3 is not installed."
     echo ""
@@ -61,14 +59,12 @@ if ! command -v python3 &>/dev/null; then
 fi
 echo "Python: $(python3 --version)"
 
-# Check pip
 if ! command -v pip3 &>/dev/null && ! python3 -m pip --version &>/dev/null; then
     echo "ERROR: pip is not installed."
     read -p "Press Enter to close..."
     exit 1
 fi
 
-# Auto-setup virtual environment if needed
 if [ ! -d "venv" ]; then
     echo ""
     echo "First-time setup: Creating virtual environment..."
@@ -79,8 +75,17 @@ if [ ! -d "venv" ]; then
     pip install --upgrade pip
 
     echo ""
-    echo "Installing packages (5-15 minutes)..."
-    pip install opencv-python opencv-contrib-python numpy Pillow requests face_recognition
+    echo "Installing opencv, numpy, Pillow, requests..."
+    pip install opencv-python opencv-contrib-python numpy Pillow requests
+
+    echo ""
+    echo "Installing face_recognition (includes dlib compile)..."
+    echo "This may take 5-10 minutes..."
+    pip install face_recognition
+
+    echo ""
+    echo "Installing face_recognition_models..."
+    pip install git+https://github.com/ageitgey/face_recognition_models
 
     echo ""
     echo "Setup complete!"
@@ -92,8 +97,14 @@ echo ""
 echo "Launching app..."
 python gui_launcher.py
 
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "App exited with error code: $EXIT_CODE"
+    echo "Try deleting the 'venv' folder and running again."
+fi
+
 echo ""
-echo "App closed."
 read -p "Press Enter to close this window..."
 EXEC
 

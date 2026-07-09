@@ -12,18 +12,26 @@ if not exist venv\Scripts\activate.bat (
     echo Upgrading pip...
     python -m pip install --upgrade pip
     echo.
-    echo Installing dependencies (this may take 10-15 minutes)...
-    pip install opencv-python opencv-contrib-python numpy Pillow requests face_recognition
+    echo Installing opencv, numpy, Pillow, requests...
+    pip install opencv-python opencv-contrib-python numpy Pillow requests
     echo.
-    echo Setup complete! Launching app...
+    echo Installing face_recognition (10-15 minutes)...
+    pip install face_recognition
+    echo.
+    echo Installing face_recognition_models...
+    pip install git+https://github.com/ageitgey/face_recognition_models
+    echo.
+    echo Setup complete!
 ) else (
     call venv\Scripts\activate
 )
 
+echo.
+echo Launching app...
 python gui_launcher.py
 if %errorlevel% neq 0 (
     echo.
-    echo Error: Something went wrong. Try deleting the 'venv' folder and double-clicking this file again.
-    pause
+    echo App exited with error code %errorlevel%
+    echo Try deleting the 'venv' folder and running again.
 )
 pause
